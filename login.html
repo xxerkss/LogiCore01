@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Вход — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/components.css">
+<style>
+  /* ===== ГЛАВНЫЙ ЭКРАН (4K READY) ===== */
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f172a;
+    color: #fff;
+    overflow: hidden;
+  }
+
+  /* Левая часть с контентом */
+  .login-hero {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8% 10%;
+    background: radial-gradient(circle at 20% 30%, #1e3a8a 0%, #0f172a 60%);
+    z-index: 1;
+  }
+
+  /* Свечение на фоне */
+  .login-hero::before {
+    content: '';
+    position: absolute;
+    top: -20%; left: -10%;
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(37,99,235,0.4) 0%, rgba(37,99,235,0) 70%);
+    border-radius: 50%;
+    z-index: -1;
+    filter: blur(60px);
+  }
+
+  /* Логотип */
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .brand svg {
+    width: 64px; height: 64px;
+    filter: drop-shadow(0 4px 12px rgba(37,99,235,0.6));
+  }
+  .brand-text h1 {
+    font-size: 36px;
+    font-weight: 900;
+    margin: 0;
+    letter-spacing: -1px;
+    background: linear-gradient(90deg, #ffffff, #93c5fd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .brand-text span {
+    display: block;
+    font-size: 12px;
+    color: #93c5fd;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* Заголовок */
+  .hero-title {
+    font-size: 54px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin: 0 0 20px 0;
+    letter-spacing: -1.5px;
+  }
+  .hero-title span {
+    color: #3b82f6;
+  }
+  .hero-subtitle {
+    font-size: 18px;
+    color: #94a3b8;
+    max-width: 500px;
+    line-height: 1.6;
+    margin-bottom: 40px;
+  }
+
+  /* Три блока WMS/TMS/ERP */
+  .features {
+    display: flex;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .feature-item {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 16px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    backdrop-filter: blur(10px);
+    transition: 0.3s;
+  }
+  .feature-item:hover {
+    background: rgba(255,255,255,0.1);
+    transform: translateY(-2px);
+  }
+  .feature-icon {
+    width: 36px; height: 36px;
+    background: rgba(37,99,235,0.2);
+    color: #60a5fa;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-size: 18px;
+  }
+  .feature-text strong { display: block; font-size: 14px; }
+  .feature-text span { font-size: 11px; color: #94a3b8; }
+
+  /* Правая часть (Форма) */
+  .login-form-side {
+    width: 500px;
+    background: #0b1220;
+    border-left: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    z-index: 2;
+    position: relative;
+  }
+
+  .form-box {
+    width: 100%;
+    max-width: 380px;
+  }
+  .form-box h2 {
+    font-size: 24px;
+    margin-top: 0;
+    margin-bottom: 8px;
+  }
+  .form-box p {
+    color: #94a3b8;
+    font-size: 14px;
+    margin-bottom: 30px;
+  }
+
+  /* Стили инпутов */
+  .input-group { margin-bottom: 20px; }
+  .input-group label {
+    display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 8px;
+  }
+  .input-group input {
+    width: 100%;
+    padding: 14px 16px;
+    background: #111c31;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 15px;
+    transition: 0.2s;
+    box-sizing: border-box;
+  }
+  .input-group input:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+  }
+
+  .form-options {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #94a3b8;
+    margin-bottom: 24px;
+  }
+  .form-options a { color: #3b82f6; text-decoration: none; }
+
+  .btn-submit {
+    width: 100%;
+    padding: 15px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .btn-submit:hover { background: #1d4ed8; box-shadow: 0 4px 15px rgba(37,99,235,0.4); }
+
+  .demo-hint {
+    text-align: center;
+    margin-top: 30px;
+    padding: 15px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    font-size: 13px;
+    color: #64748b;
+    border: 1px dashed #1e293b;
+  }
+  .demo-hint b { color: #cbd5e1; }
+
+  .error-msg { color: #ef4444; font-size: 13px; margin-bottom: 15px; display: none; }
+
+  /* Адаптив для телефонов */
+  @media (max-width: 1024px) {
+    body { flex-direction: column; overflow-y: auto; }
+    .login-hero { padding: 40px 20px; }
+    .hero-title { font-size: 32px; }
+    .features { flex-wrap: wrap; }
+    .login-form-side { width: 100%; border-left: none; padding: 30px 20px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ЛЕВАЯ ЧАСТЬ -->
+  <div class="login-hero">
+    <div class="brand">
+      <!-- Векторный 4K Логотип (как на картинке) -->
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 4L4 20V44L32 60L60 44V20L32 4Z" fill="#2563eb"/>
+        <path d="M32 4L4 20L32 36L60 20L32 4Z" fill="#60a5fa"/>
+        <path d="M32 36V60L60 44V20L32 36Z" fill="#1d4ed8"/>
+        <path d="M12 26V40L24 47V33L12 26Z" fill="#ffffff"/>
+        <path d="M32 36V60L4 44V20L32 36Z" fill="#3b82f6" opacity="0.3"/>
+      </svg>
+      <div class="brand-text">
+        <h1>LogiCore</h1>
+        <span>Warehouse · Logistics · Enterprise</span>
+      </div>
+    </div>
+
+    <h2 class="hero-title">Управляйте складом,<br>логистикой и бизнесом<br><span>в одном месте</span></h2>
+    <p class="hero-subtitle">LogiCore — современная система для эффективного управления всеми процессами вашей компании.</p>
+
+    <div class="features">
+      <div class="feature-item">
+        <div class="feature-icon">📦</div>
+        <div class="feature-text"><strong>WMS</strong><span>Склад и запасы</span></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🚚</div>
+        <div class="feature-text"><strong>TMS</strong><span>Транспорт и рейсы</span></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🏢</div>
+        <div class="feature-text"><strong>ERP</strong><span>Управление компанией</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРАВАЯ ЧАСТЬ (ФОРМА) -->
+  <div class="login-form-side">
+    <div class="form-box">
+      <h2>Вход в систему</h2>
+      <p>Введите свои данные для доступа</p>
+      
+      <div class="error-msg" id="loginError">Неверный логин или пароль</div>
+
+      <form id="loginForm">
+        <div class="input-group">
+          <label>Логин или email</label>
+          <input type="text" id="loginName" placeholder="admin" required>
+        </div>
+        <div class="input-group">
+          <label>Пароль</label>
+          <input type="password" id="loginPass" placeholder="••••" required>
+        </div>
+
+        <div class="form-options">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" checked style="accent-color:#2563eb"> Запомнить меня
+          </label>
+          <a href="#">Забыли пароль?</a>
+        </div>
+
+        <button type="submit" class="btn-submit">Войти</button>
+      </form>
+
+      <div class="demo-hint">
+        Демо-доступ:<br>
+        Логин: <b>admin</b> &nbsp;|&nbsp; Пароль: <b>1234</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- СКРИПТЫ -->
+  <script src="../js/data/storage.js"></script>
+  <script src="../js/core/notifications.js"></script>
+  <script src="../js/core/auth.js"></script>
+  <script>
+    (function(){
+      var form = document.getElementById('loginForm');
+      var errBox = document.getElementById('loginError');
+      
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        errBox.style.display = 'none';
+        
+        var login = document.getElementById('loginName').value.trim();
+        var pass = document.getElementById('loginPass').value;
+        
+        var session = Auth.login(login, pass);
+        if (!session) {
+          errBox.style.display = 'block';
+          return;
+        }
+        location.href = 'dashboard.html';
+      });
+      
+      if (Auth.current()) location.href = 'dashboard.html';
+    })();
+  </script>
+</body>
+</html>

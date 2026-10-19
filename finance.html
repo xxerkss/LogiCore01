@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Финансы — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content=App.initLayout('finance','Финансы');
+  if(!content)return;
+  var S=Storage, canWrite=Permissions.canWrite('finance'), typeFilter='', searchVal='';
+  var t=Finance.totals();
+
+  content.innerHTML=
+    '<div class="page-head"><div><h2>Финансы</h2><p>Учёт доходов и расходов (не бухгалтерская система).</p></div>'+
+    (canWrite?'<button class="btn btn--primary" id="btnAdd">+ Операция</button>':'')+'</div>'+
+    '<div class="kpi-grid">'+
+      '<div class="kpi kpi--green"><div class="kpi__head"><span class="kpi__label">Доходы</span></div><div class="kpi__value">'+S.money(t.income)+'</div></div>'+
+      '<div class="kpi kpi--red"><div class="kpi__head"><span class="kpi__label">Расходы</span></div><div class="kpi__value">'+S.money(t.expense)+'</div></div>'+
+      '<div class="kpi kpi--blue"><div class="kpi__head"><span class="kpi__label">Баланс</span></div><div class="kpi__value">'+S.money(t.balance)+'</div></div>'+
+    '</div>'+
+    '<div id="filters"></div>'+
+    '<div class="card"><div class="card__body" id="table"></div></div>';
+
+  Filters.create(document.getElementById('filters'),{
+    searchPlaceholder:'Поиск по описанию, категории…',
+    selects:[{name:'type',label:'Тип',placeholder:'Все типы',options:[{value:'income',label:'Доход'},{value:'expense',label:'Расход'}]}],
+    onChange:function(d){typeFilter=d.type;searchVal=d.search;draw();}
+  });
+
+  function draw(){
+    var rows=Finance.all();
+    if(typeFilter)rows=rows.filter(function(r){return r.type===typeFilter;});
+    Table.render(document.getElementById('table'),{
+      rows:rows, search:searchVal, pageSize:12, emptyText:'Операций нет',
+      columns:[
+        { key:'date', label:'Дата', render:function(r){return S.formatDate(r.date);} },
+        { key:'type', label:'Тип', render:function(r){
+          return r.type==='income'?'<span class="badge badge--green">Доход</span>':'<span class="badge badge--red">Расход</span>';
+        }},
+        { key:'category', label:'Категория' },
+        { key:'description', label:'Описание' },
+        { key:'amount', label:'Сумма', render:function(r){return S.money(r.amount);} },
+        { key:'id', label:'', sortable:false, render:function(r){
+          if(!canWrite)return '';
+          return '<div class="actions"><button class="btn btn--icon btn--danger" data-del="'+r.id+'">🗑</button></div>';
+        }}
+      ]
+    });
+    document.getElementById('table').querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
+      Modal.confirm('Удалить операцию?','',function(){Finance.remove(b.dataset.del);draw();location.reload();});
+    };});
+  }
+
+  function openForm(){
+    var body=document.createElement('div');body.className='form-grid';
+    var fType=Forms.field({label:'Тип',name:'type',type:'select',required:true,options:[{value:'income',label:'Доход'},{value:'expense',label:'Расход'}]});
+    var fCat=Forms.field({label:'Категория',name:'category',type:'select',required:true,options:Finance.CATEGORIES.map(function(c){return {value:c,label:c};})});
+    var fAmt=Forms.field({label:'Сумма, ₸',name:'amount',type:'number',required:true,min:1});
+    var fDate=Forms.field({label:'Дата',name:'date',type:'date',value:S.todayISO()});
+    var fDesc=Forms.field({label:'Описание',name:'description',type:'textarea',full:true});
+    [fType,fCat,fAmt,fDate,fDesc].forEach(function(f){body.appendChild(f.wrap);});
+    Modal.open({
+      title:'Новая операция',content:body,wide:true,confirmText:'Добавить',
+      onConfirm:function(){
+        var r=Finance.create({type:fType.input.value,category:fCat.input.value,amount:fAmt.input.value,date:fDate.input.value,description:fDesc.input.value});
+        if(r.error){Notifications.error('Ошибка',r.error);return false;}
+        location.reload();return true;
+      }
+    });
+  }
+
+  if(canWrite)document.getElementById('btnAdd').onclick=openForm;
+  draw();
+})();
+</script>
+</body>
+</html>

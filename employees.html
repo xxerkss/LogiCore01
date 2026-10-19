@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сотрудники — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content=App.initLayout('employees','Сотрудники');
+  if(!content)return;
+  var canWrite=Permissions.canWrite('employees'), searchVal='';
+
+  content.innerHTML=
+    '<div class="page-head"><div><h2>Сотрудники</h2><p>Кадровый учёт компании.</p></div>'+
+    (canWrite?'<button class="btn btn--primary" id="btnAdd">+ Сотрудник</button>':'')+'</div>'+
+    '<div id="filters"></div>'+
+    '<div class="card"><div class="card__body" id="table"></div></div>';
+
+  Filters.create(document.getElementById('filters'),{searchPlaceholder:'Поиск по ФИО, должности…',onChange:function(d){searchVal=d.search;draw();}});
+
+  function draw(){
+    Table.render(document.getElementById('table'),{
+      rows:Employees.all(), search:searchVal, pageSize:10, emptyText:'Сотрудников нет',
+      columns:[
+        { key:'name', label:'ФИО' },
+        { key:'position', label:'Должность' },
+        { key:'phone', label:'Телефон' },
+        { key:'email', label:'Email' },
+        { key:'status', label:'Статус', render:function(r){
+          return r.status==='active'?'<span class="status status--active">Работает</span>':'<span class="status status--inactive">Неактивен</span>';
+        }},
+        { key:'id', label:'', sortable:false, render:function(r){
+          if(!canWrite)return '';
+          return '<div class="actions"><button class="btn btn--icon btn--ghost" data-edit="'+r.id+'">✎</button><button class="btn btn--icon btn--danger" data-del="'+r.id+'">🗑</button></div>';
+        }}
+      ]
+    });
+    var root=document.getElementById('table');
+    root.querySelectorAll('[data-edit]').forEach(function(b){b.onclick=function(){openForm(Employees.find(b.dataset.edit));};});
+    root.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
+      Modal.confirm('Удалить сотрудника?','',function(){Employees.remove(b.dataset.del);draw();});
+    };});
+  }
+
+  function openForm(existing){
+    var isEdit=!!existing;
+    var body=document.createElement('div');body.className='form-grid';
+    var fName=Forms.field({label:'ФИО',name:'name',required:true,value:existing?existing.name:'',full:true});
+    var fPos=Forms.field({label:'Должность',name:'position',required:true,value:existing?existing.position:''});
+    var fPhone=Forms.field({label:'Телефон',name:'phone',value:existing?existing.phone:''});
+    var fEmail=Forms.field({label:'Email',name:'email',value:existing?existing.email:''});
+    var fStatus=Forms.field({label:'Статус',name:'status',type:'select',options:[{value:'active',label:'Работает'},{value:'inactive',label:'Неактивен'}],value:existing?existing.status:'active'});
+    [fName,fPos,fPhone,fEmail,fStatus].forEach(function(f){body.appendChild(f.wrap);});
+    Modal.open({
+      title:isEdit?'Изменить сотрудника':'Новый сотрудник',content:body,wide:true,
+      confirmText:isEdit?'Сохранить':'Создать',
+      onConfirm:function(){
+        var data={name:fName.input.value,position:fPos.input.value,phone:fPhone.input.value,email:fEmail.input.value,status:fStatus.input.value};
+        var r=isEdit?Employees.update(existing.id,data):Employees.create(data);
+        if(r.error){Notifications.error('Ошибка',r.error);return false;}
+        draw();return true;
+      }
+    });
+  }
+
+  if(canWrite)document.getElementById('btnAdd').onclick=function(){openForm(null);};
+  draw();
+})();
+</script>
+</body>
+</html>

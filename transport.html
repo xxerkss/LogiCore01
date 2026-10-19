@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Транспорт — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content=App.initLayout('transport','Транспорт');
+  if(!content)return;
+  var canWrite=Permissions.canWrite('transport');
+
+  content.innerHTML=
+    '<div class="page-head"><div><h2>Транспорт и водители</h2><p>Автопарк компании.</p></div>'+
+    '<div style="display:flex;gap:8px">'+
+      (canWrite?'<button class="btn btn--ghost" id="btnDriver">+ Водитель</button><button class="btn btn--primary" id="btnAdd">+ Транспорт</button>':'')+
+    '</div></div>'+
+    '<div class="dash-grid">'+
+      '<div class="card"><div class="card__head"><h3>Автопарк</h3></div><div class="card__body" id="tblTransport"></div></div>'+
+      '<div class="card"><div class="card__head"><h3>Водители</h3></div><div class="card__body" id="tblDrivers"></div></div>'+
+    '</div>';
+
+  function draw(){
+    Table.render(document.getElementById('tblTransport'), {
+      rows:Transport.all(), pageSize:8, emptyText:'Транспорта нет',
+      columns:[
+        { key:'plate', label:'Госномер', width:'100px' },
+        { key:'model', label:'Модель' },
+        { key:'capacity', label:'Тоннаж', render:function(r){return r.capacity+' кг';} },
+        { key:'status', label:'Статус', render:function(r){
+          var cls=r.status==='active'?'status--active':'status--inactive';
+          var lbl={active:'Активен',maintenance:'ТО',inactive:'Неактивен'}[r.status]||r.status;
+          return '<span class="status '+cls+'">'+lbl+'</span>';
+        }},
+        { key:'id', label:'', sortable:false, render:function(r){
+          if(!canWrite)return '';
+          return '<div class="actions"><button class="btn btn--icon btn--ghost" data-edit="'+r.id+'">✎</button><button class="btn btn--icon btn--danger" data-del="'+r.id+'">🗑</button></div>';
+        }}
+      ]
+    });
+    document.getElementById('tblTransport').querySelectorAll('[data-edit]').forEach(function(b){b.onclick=function(){openVehicle(Transport.find(b.dataset.edit));};});
+    document.getElementById('tblTransport').querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
+      Modal.confirm('Удалить ТС?','',function(){var r=Transport.remove(b.dataset.del);if(r.error){Notifications.error('Ошибка',r.error);return;}draw();});
+    };});
+    
+
+
+    
+    Table.render(document.getElementById('tblDrivers'), {
+      rows:Transport.drivers(), pageSize:8, emptyText:'Водителей нет',
+      columns:[
+        { key:'name', label:'ФИО' },
+        { key:'phone', label:'Телефон' },
+        { key:'status', label:'Статус', render:function(r){
+          var cls=r.status==='active'?'status--active':'status--inactive';
+          var lbl={active:'Доступен',vacation:'Отпуск',inactive:'Неактивен'}[r.status]||r.status;
+          return '<span class="status '+cls+'">'+lbl+'</span>';
+        }},
+        { key:'id', label:'', sortable:false, render:function(r){
+          if(!canWrite)return '';
+          return '<div class="actions"><button class="btn btn--icon btn--ghost" data-editDrv="'+r.id+'">✎</button><button class="btn btn--icon btn--danger" data-delDrv="'+r.id+'">🗑</button></div>';
+        }}
+      ]
+    });
+    document.getElementById('tblDrivers').querySelectorAll('[data-editDrv]').forEach(function(b){b.onclick=function(){openDriver(Transport.driverFind(b.dataset.editDrv));};});
+    document.getElementById('tblDrivers').querySelectorAll('[data-delDrv]').forEach(function(b){b.onclick=function(){
+      Modal.confirm('Удалить водителя?','',function(){var r=Transport.removeDriver(b.dataset.delDrv);if(r.error){Notifications.error('Ошибка',r.error);return;}draw();});
+    };});
+  }
+
+  function openVehicle(existing){
+    var isEdit=!!existing;
+    var body=document.createElement('div');body.className='form-grid';
+    var drivers=[{value:'',label:'— не назначен —'}].concat(Transport.drivers().map(function(d){return {value:d.id,label:d.name};}));
+    var fPlate=Forms.field({label:'Госномер',name:'plate',required:true,value:existing?existing.plate:''});
+    var fModel=Forms.field({label:'Марка/модель',name:'model',required:true,value:existing?existing.model:''});
+    var fType=Forms.field({label:'Тип',name:'type',type:'select',options:[{value:'Фура',label:'Фура'},{value:'Газель',label:'Газель'},{value:'Фургон',label:'Фургон'},{value:'Рефрижератор',label:'Рефрижератор'}],value:existing?existing.type:'Фургон'});
+    var fCap=Forms.field({label:'Грузоподъёмность, кг',name:'capacity',type:'number',required:true,min:1,value:existing?existing.capacity:1000});
+    var fStatus=Forms.field({label:'Статус',name:'status',type:'select',options:[{value:'active',label:'Активен'},{value:'maintenance',label:'На ТО'},{value:'inactive',label:'Неактивен'}],value:existing?existing.status:'active'});
+    var fDriver=Forms.field({label:'Водитель',name:'driverId',type:'select',options:drivers,value:existing?existing.driverId:''});
+    [fPlate,fModel,fType,fCap,fStatus,fDriver].forEach(function(f){body.appendChild(f.wrap);});
+    Modal.open({
+      title:isEdit?'Изменить ТС':'Новое ТС',content:body,wide:true,
+      confirmText:isEdit?'Сохранить':'Создать',
+      onConfirm:function(){
+        var data={plate:fPlate.input.value,model:fModel.input.value,type:fType.input.value,capacity:fCap.input.value,status:fStatus.input.value,driverId:fDriver.input.value};
+        var r=isEdit?Transport.update(existing.id,data):Transport.create(data);
+        if(r.error){Notifications.error('Ошибка',r.error);return false;}
+        draw();return true;
+      }
+    });
+  }
+
+  function openDriver(existing){
+    var isEdit=!!existing;
+    var body=document.createElement('div');body.className='form-grid';
+    var fName=Forms.field({label:'ФИО',name:'name',required:true,value:existing?existing.name:'',full:true});
+    var fPhone=Forms.field({label:'Телефон',name:'phone',value:existing?existing.phone:''});
+    var fLic=Forms.field({label:'Вод. удостоверение',name:'license',value:existing?existing.license:''});
+    var fStatus=Forms.field({label:'Статус',name:'status',type:'select',options:[{value:'active',label:'Доступен'},{value:'vacation',label:'Отпуск'},{value:'inactive',label:'Неактивен'}],value:existing?existing.status:'active'});
+    [fName,fPhone,fLic,fStatus].forEach(function(f){body.appendChild(f.wrap);});
+    Modal.open({
+      title:isEdit?'Изменить водителя':'Новый водитель',content:body,wide:true,
+      confirmText:isEdit?'Сохранить':'Создать',
+      onConfirm:function(){
+        var data={name:fName.input.value,phone:fPhone.input.value,license:fLic.input.value,status:fStatus.input.value};
+        var r=isEdit?Transport.updateDriver(existing.id,data):Transport.createDriver(data);
+        if(r.error){Notifications.error('Ошибка',r.error);return false;}
+        draw();return true;
+      }
+    });
+  }
+
+  if(canWrite){
+    document.getElementById('btnAdd').onclick=function(){openVehicle(null);};
+    document.getElementById('btnDriver').onclick=function(){openDriver(null);};
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

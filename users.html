@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Пользователи — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content=App.initLayout('users','Пользователи');
+  if(!content)return;
+  var S=Storage, canWrite=Permissions.can('users');
+
+  content.innerHTML=
+    '<div class="page-head"><div><h2>Пользователи и роли</h2><p>Демонстрационный механизм. Не является реальной защитой.</p></div></div>'+
+    '<div class="card"><div class="card__head"><h3>Учётные записи</h3></div><div class="card__body" id="table"></div></div>';
+
+  function draw(){
+    Table.render(document.getElementById('table'),{
+      rows:S.read(S.KEYS.users,[]), pageSize:10, emptyText:'Пользователей нет',
+      columns:[
+        { key:'login', label:'Логин', width:'140px' },
+        { key:'name', label:'Имя' },
+        { key:'role', label:'Роль', render:function(r){return '<span class="badge badge--blue">'+Permissions.label(r.role)+'</span>';} },
+        { key:'status', label:'Статус', render:function(r){return r.status==='active'?'<span class="status status--active">Активен</span>':'<span class="status status--inactive">Неактивен</span>';} }
+      ]
+    });
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

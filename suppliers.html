@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Поставщики — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content=App.initLayout('suppliers','Поставщики');
+  if(!content)return;
+  var canWrite=Permissions.canWrite('suppliers'), searchVal='';
+
+  content.innerHTML=
+    '<div class="page-head"><div><h2>Поставщики</h2><p>Контакты и история поставок.</p></div>'+
+    (canWrite?'<button class="btn btn--primary" id="btnAdd">+ Поставщик</button>':'')+'</div>'+
+    '<div id="filters"></div>'+
+    '<div class="card"><div class="card__body" id="table"></div></div>';
+
+  Filters.create(document.getElementById('filters'),{searchPlaceholder:'Поиск по названию, контактам…',onChange:function(d){searchVal=d.search;draw();}});
+
+  function draw(){
+    Table.render(document.getElementById('table'),{
+      rows:Suppliers.all(), search:searchVal, pageSize:10, emptyText:'Поставщиков нет',
+      columns:[
+        { key:'name', label:'Компания' },
+        { key:'contact', label:'Контакт' },
+        { key:'phone', label:'Телефон' },
+        { key:'email', label:'Email' },
+        { key:'id', label:'Поставок', sortable:false, render:function(r){return Suppliers.historyOf(r.id).length;} },
+        { key:'id', label:'', sortable:false, render:function(r){
+          if(!canWrite)return '';
+          return '<div class="actions"><button class="btn btn--icon btn--ghost" data-edit="'+r.id+'">✎</button><button class="btn btn--icon btn--danger" data-del="'+r.id+'">🗑</button></div>';
+        }}
+      ]
+    });
+    var root=document.getElementById('table');
+    root.querySelectorAll('[data-edit]').forEach(function(b){b.onclick=function(){openForm(Suppliers.find(b.dataset.edit));};});
+    root.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
+      Modal.confirm('Удалить поставщика?','',function(){var r=Suppliers.remove(b.dataset.del);if(r.error){Notifications.error('Ошибка',r.error);return;}draw();});
+    };});
+  }
+
+  function openForm(existing){
+    var isEdit=!!existing;
+    var body=document.createElement('div');body.className='form-grid';
+    var fName=Forms.field({label:'Название компании',name:'name',required:true,value:existing?existing.name:'',full:true});
+    var fContact=Forms.field({label:'Контактное лицо',name:'contact',value:existing?existing.contact:''});
+    var fPhone=Forms.field({label:'Телефон',name:'phone',value:existing?existing.phone:''});
+    var fEmail=Forms.field({label:'Email',name:'email',value:existing?existing.email:''});
+    var fAddr=Forms.field({label:'Адрес',name:'address',value:existing?existing.address:'',full:true});
+    var fNote=Forms.field({label:'Комментарий',name:'note',type:'textarea',value:existing?existing.note:'',full:true});
+    [fName,fContact,fPhone,fEmail,fAddr,fNote].forEach(function(f){body.appendChild(f.wrap);});
+    Modal.open({
+      title:isEdit?'Изменить поставщика':'Новый поставщик',content:body,wide:true,
+      confirmText:isEdit?'Сохранить':'Создать',
+      onConfirm:function(){
+        var data={name:fName.input.value,contact:fContact.input.value,phone:fPhone.input.value,email:fEmail.input.value,address:fAddr.input.value,note:fNote.input.value};
+        var r=isEdit?Suppliers.update(existing.id,data):Suppliers.create(data);
+        if(r.error){Notifications.error('Ошибка',r.error);return false;}
+        draw();return true;
+      }
+    });
+  }
+
+  if(canWrite)document.getElementById('btnAdd').onclick=function(){openForm(null);};
+  draw();
+})();
+</script>
+</body>
+</html>

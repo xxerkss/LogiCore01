@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Отчёты — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content=App.initLayout('reports','Отчёты');
+  if(!content)return;
+  var S=Storage;
+
+  content.innerHTML=
+    '<div class="page-head"><div><h2>Отчёты и аналитика</h2><p>Сводные данные по складу, логистике и финансам.</p></div>'+
+    '<button class="btn btn--ghost" id="btnBackup">Экспорт JSON</button></div>'+
+    '<div class="dash-grid">'+
+      '<div class="card"><div class="card__head"><h3>Остатки по складам</h3></div><div class="card__body" id="r1"></div></div>'+
+      '<div class="card"><div class="card__head"><h3>Заказы по статусам</h3></div><div class="card__body" id="r2"></div></div>'+
+    '</div>'+
+    '<div class="dash-grid">'+
+      '<div class="card"><div class="card__head"><h3>Низкий остаток</h3></div><div class="card__body" id="r3"></div></div>'+
+      '<div class="card"><div class="card__head"><h3>Расходы по категориям</h3></div><div class="card__body" id="r4"></div></div>'+
+    '</div>'+
+    '<div class="card" style="margin-top:18px"><div class="card__head"><h3>Эффективность поставщиков</h3></div><div class="card__body" id="r5"></div></div>';
+        
+  
+    
+    // 1
+  var stock=Reports.stockByWarehouse();
+  document.getElementById('r1').innerHTML='<div class="table-wrap"><table class="data"><thead><tr><th>Склад</th><th>Позиций</th><th>Кол-во</th><th>Вместимость</th></tr></thead><tbody>'+
+    stock.map(function(s){return '<tr><td>'+Table.escapeHtml(s.warehouse)+'</td><td>'+s.items+'</td><td>'+s.qty+'</td><td>'+s.capacity+'</td></tr>';}).join('')+
+    '</tbody></table></div>';
+
+  
+    
+    // 2
+  var st=Reports.ordersByStatus();
+  document.getElementById('r2').innerHTML='<div class="table-wrap"><table class="data"><thead><tr><th>Статус</th><th>Кол-во</th></tr></thead><tbody>'+
+    Object.keys(st).map(function(k){return '<tr><td>'+(Orders.STATUS_LABELS[k]||k)+'</td><td>'+st[k]+'</td></tr>';}).join('')+
+    '</tbody></table></div>';
+
+  
+    
+    // 3
+  var low=Reports.lowStock();
+  document.getElementById('r3').innerHTML= low.length
+    ? '<div class="table-wrap"><table class="data"><thead><tr><th>Товар</th><th>Остаток</th><th>Мин.</th></tr></thead><tbody>'+
+      low.map(function(l){return '<tr><td>'+Table.escapeHtml(l.name)+'</td><td><span class="badge badge--red">'+l.qty+'</span></td><td>'+l.minQty+'</td></tr>';}).join('')+
+      '</tbody></table></div>'
+    : '<div class="empty"><h4>Все в норме</h4></div>';
+
+  
+    
+    // 4
+  var fc=Reports.financeByCategory();
+  document.getElementById('r4').innerHTML='<div class="table-wrap"><table class="data"><thead><tr><th>Категория</th><th>Сумма</th></tr></thead><tbody>'+
+    Object.keys(fc).map(function(k){return '<tr><td>'+k+'</td><td>'+S.money(fc[k])+'</td></tr>';}).join('')+
+    '</tbody></table></div>';
+
+  
+    
+    // 5
+  var sup=Reports.supplierPerformance();
+  document.getElementById('r5').innerHTML='<div class="table-wrap"><table class="data"><thead><tr><th>Поставщик</th><th>Поставок</th><th>Всего единиц</th></tr></thead><tbody>'+
+    sup.map(function(s){return '<tr><td>'+Table.escapeHtml(s.name)+'</td><td>'+s.deliveries+'</td><td>'+s.totalQty+'</td></tr>';}).join('')+
+    '</tbody></table></div>';
+
+  document.getElementById('btnBackup').onclick=function(){Backup.download();};
+})();
+
+
+</script>
+</body>
+</html>

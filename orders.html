@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Заказы — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content = App.initLayout('orders','Заказы');
+  if (!content) return;
+  var S = Storage, canWrite = Permissions.canWrite('orders');
+  var searchVal='', statusFilter='';
+
+  content.innerHTML =
+    '<div class="page-head"><div><h2>Заказы</h2><p>Управление клиентскими заказами и статусами.</p></div>' +
+    (canWrite?'<button class="btn btn--primary" id="btnAdd">+ Новый заказ</button>':'') + '</div>' +
+    '<div id="filters"></div>' +
+    '<div class="card"><div class="card__body" id="table"></div></div>';
+
+  Filters.create(document.getElementById('filters'), {
+    searchPlaceholder:'Поиск: номер, клиент, адрес…',
+    selects:[{ name:'status', label:'Статус', placeholder:'Все статусы',
+      options:Object.keys(Orders.STATUS_LABELS).map(function(k){return {value:k,label:Orders.STATUS_LABELS[k]};}) }],
+    onChange:function(d){ searchVal=d.search; statusFilter=d.status; draw(); }
+  });
+
+  function draw(){
+    var rows = Orders.all().map(function(o){
+      return {
+        id:o.id, number:o.number, customer:o.customer, phone:o.phone, address:o.address,
+        total:Orders.totalOf(o), status:o.status, createdAt:o.createdAt, deliveryDate:o.deliveryDate
+      };
+    });
+    if (statusFilter) rows = rows.filter(function(r){return r.status===statusFilter;});
+    var root = document.getElementById('table');
+    Table.render(root, {
+      rows:rows, search:searchVal, pageSize:10, emptyText:'Заказов нет',
+      columns:[
+        { key:'number', label:'Номер', width:'110px' },
+        { key:'customer', label:'Клиент' },
+        { key:'createdAt', label:'Создан', render:function(r){return S.formatDate(r.createdAt);} },
+        { key:'deliveryDate', label:'Доставка', render:function(r){return r.deliveryDate?S.formatDate(r.deliveryDate):'—';} },
+        { key:'total', label:'Сумма', render:function(r){return S.money(r.total);} },
+        { key:'status', label:'Статус', render:function(r){return '<span class="status status--'+r.status+'">'+(Orders.STATUS_LABELS[r.status]||r.status)+'</span>';} },
+        { key:'id', label:'', sortable:false, render:function(r){
+          var html='<div class="actions">';
+          if (canWrite){
+            html+='<button class="btn btn--sm btn--ghost" data-view="'+r.id+'">Открыть</button>';
+            if (r.status!=='delivered' && r.status!=='cancelled') html+='<button class="btn btn--sm btn--success" data-next="'+r.id+'">→</button>';
+            html+='<button class="btn btn--icon btn--danger" data-del="'+r.id+'">🗑</button>';
+          }
+          return html+'</div>';
+        }}
+      ]
+    });
+    root.querySelectorAll('[data-next]').forEach(function(b){b.onclick=function(){
+      var r=Orders.nextStatus(b.dataset.next);
+      if (r.error){Notifications.error('Ошибка',r.error);return;}
+      draw();
+    };});
+    root.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
+      Modal.confirm('Удалить заказ?','Действие необратимо.',function(){
+        var r=Orders.remove(b.dataset.del);
+        if (r.error){Notifications.error('Ошибка',r.error);return;}
+        draw();
+      });
+    };});
+    root.querySelectorAll('[data-view]').forEach(function(b){b.onclick=function(){viewOrder(Orders.find(b.dataset.view));};});
+  }
+
+  function viewOrder(o){
+    var body=document.createElement('div');
+    body.innerHTML='<div style="display:flex;flex-direction:column;gap:10px;font-size:14px">'+
+      '<div><strong>'+o.number+'</strong> — '+Table.escapeHtml(o.customer)+'</div>'+
+      '<div>Телефон: '+Table.escapeHtml(o.phone)+'</div>'+
+      '<div>Адрес: '+Table.escapeHtml(o.address)+'</div>'+
+      '<div>Статус: <span class="status status--'+o.status+'">'+(Orders.STATUS_LABELS[o.status]||o.status)+'</span></div>'+
+      '<div><strong>Позиции:</strong></div>'+
+      '<div class="table-wrap"><table class="data"><thead><tr><th>Товар</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>'+
+      (o.items||[]).map(function(it){var p=Products.find(it.productId);return '<tr><td>'+(p?Table.escapeHtml(p.name):'—')+'</td><td>'+it.qty+'</td><td>'+S.money(it.price)+'</td><td>'+S.money(it.qty*it.price)+'</td></tr>';}).join('')+
+      '</tbody></table></div>'+
+      '<div style="text-align:right;font-size:16px"><strong>Итого: '+S.money(Orders.totalOf(o))+'</strong></div>'+
+      '</div>';
+    Modal.open({title:'Заказ', content:body, wide:true, cancelText:'Закрыть', confirmText:canWrite?'Изменить':null,
+      onConfirm:canWrite?function(){editOrder(o);return true;}:null});
+  }
+
+  function openForm(existing){
+    var isEdit=!!existing;
+    var body=document.createElement('div'); body.className='form-grid';
+    var fCust=Forms.field({label:'Получатель',name:'customer',required:true,value:existing?existing.customer:''});
+    var fPhone=Forms.field({label:'Телефон',name:'phone',required:true,value:existing?existing.phone:''});
+    var fAddr=Forms.field({label:'Адрес доставки',name:'address',required:true,value:existing?existing.address:'',full:true});
+    var fDate=Forms.field({label:'Планируемая дата',name:'deliveryDate',type:'date',value:existing?existing.deliveryDate:''});
+    var fNote=Forms.field({label:'Примечание',name:'note',type:'textarea',value:existing?existing.note:'',full:true});
+    [fCust,fPhone,fAddr,fDate,fNote].forEach(function(f){body.appendChild(f.wrap);});
+
+    var itemsWrap=document.createElement('div'); itemsWrap.style.marginTop='12px'; body.appendChild(itemsWrap);
+    var addBtn=document.createElement('button'); addBtn.type='button'; addBtn.className='btn btn--sm btn--ghost'; addBtn.textContent='+ Товар'; body.appendChild(addBtn);
+
+    var lines = existing ? existing.items.map(function(it){return {productId:it.productId, qty:it.qty, price:it.price};}) : [{productId:'',qty:1,price:0}];
+    function drawItems(){
+      itemsWrap.innerHTML='';
+      lines.forEach(function(l,idx){
+        var row=document.createElement('div');
+        row.style.cssText='display:grid;grid-template-columns:1fr 70px 100px 40px;gap:8px;margin-bottom:6px;align-items:center';
+        var sel=document.createElement('select');
+        sel.style.cssText='padding:7px 10px;border:1px solid var(--border-strong);border-radius:6px';
+        sel.innerHTML='<option value="">— товар —</option>'+Products.all().map(function(p){return '<option value="'+p.id+'"'+(p.id===l.productId?' selected':'')+'>'+Table.escapeHtml(p.name)+'</option>';}).join('');
+        sel.onchange=function(){l.productId=sel.value;var p=Products.find(l.productId);if(p)l.price=p.cost;drawItems();};
+        var q=document.createElement('input'); q.type='number'; q.min=1; q.value=l.qty; q.style.cssText='padding:7px 10px;border:1px solid var(--border-strong);border-radius:6px';
+        q.onchange=function(){l.qty=Number(q.value)||1;};
+        var pr=document.createElement('input'); pr.type='number'; pr.min=0; pr.value=l.price; pr.style.cssText='padding:7px 10px;border:1px solid var(--border-strong);border-radius:6px';
+        pr.onchange=function(){l.price=Number(pr.value)||0;};
+        var rm=document.createElement('button'); rm.className='btn btn--icon btn--danger'; rm.textContent='×'; rm.type='button';
+        rm.onclick=function(){lines.splice(idx,1);drawItems();};
+        row.appendChild(sel); row.appendChild(q); row.appendChild(pr); row.appendChild(rm);
+        itemsWrap.appendChild(row);
+      });
+    }
+    addBtn.onclick=function(){lines.push({productId:'',qty:1,price:0});drawItems();};
+    drawItems();
+
+    Modal.open({
+      title:isEdit?'Изменить заказ':'Новый заказ', content:body, wide:true,
+      confirmText:isEdit?'Сохранить':'Создать',
+      onConfirm:function(){
+        var data={customer:fCust.input.value,phone:fPhone.input.value,address:fAddr.input.value,deliveryDate:fDate.input.value,note:fNote.input.value,items:lines};
+        var r=isEdit?Orders.update(existing.id,data):Orders.create(data);
+        if (r.error){Notifications.error('Ошибка',r.error);return false;}
+        draw();return true;
+      }
+    });
+  }
+  function editOrder(o){ openForm(o); }
+
+  if (canWrite) document.getElementById('btnAdd').onclick=function(){openForm(null);};
+  draw();
+})();
+</script>
+</body>
+</html>

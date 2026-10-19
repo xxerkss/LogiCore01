@@ -1,0 +1,51 @@
+body{font-family:var(--font);background:var(--bg-body);color:var(--text-main);display:flex;min-height:100vh;transition:background var(--transition),color var(--transition)}
+
+.app-layout{display:flex;width:100%}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);background:var(--bg-sidebar);color:var(--text-sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:60;transition:transform var(--transition)}
+.sidebar__brand{display:flex;align-items:center;gap:10px;padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar__logo{width:36px;height:36px;flex-shrink:0}
+.sidebar__brand-text h1{font-size:18px;color:#fff;letter-spacing:.3px}
+.sidebar__brand-text span{display:block;font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.2px}
+.sidebar__nav{flex:1;overflow-y:auto;padding:12px 10px}
+.sidebar__group{margin-bottom:14px}
+.sidebar__group-title{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:#64748b;padding:6px 12px;font-weight:700}
+.sidebar__link{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:14px;color:var(--text-sidebar);transition:background var(--transition),color var(--transition);position:relative}
+.sidebar__link:hover{background:var(--bg-sidebar-hover);color:#fff}
+.sidebar__link.is-active{background:var(--bg-sidebar-active);color:#fff;font-weight:600}
+.sidebar__link svg{width:18px;height:18px;flex-shrink:0}
+.sidebar__link .badge{margin-left:auto;background:var(--c-danger);color:#fff;font-size:10px;padding:1px 6px;border-radius:999px}
+.sidebar__footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:#64748b}
+
+/* MAIN */
+.main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh;transition:margin var(--transition)}
+
+/* HEADER */
+.header{height:var(--header-h);background:var(--bg-header);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 22px;position:sticky;top:0;z-index:40;box-shadow:var(--shadow-sm)}
+.header__title{font-size:17px;font-weight:700;white-space:nowrap}
+.header__search{flex:1;max-width:420px;position:relative}
+.header__search input{width:100%;padding:8px 12px 8px 36px;border:1px solid var(--border);border-radius:8px;background:var(--bg-muted);font-size:14px;transition:border var(--transition)}
+.header__search input:focus{border-color:var(--c-primary);background:var(--bg-surface)}
+.header__search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted)}
+.header__actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.header__icon-btn{width:38px;height:38px;border-radius:8px;display:grid;place-items:center;color:var(--text-muted);position:relative;transition:background var(--transition),color var(--transition)}
+.header__icon-btn:hover{background:var(--bg-muted);color:var(--text-main)}
+.header__icon-btn svg{width:20px;height:20px}
+.header__icon-btn .dot{position:absolute;top:7px;right:7px;width:8px;height:8px;background:var(--c-danger);border-radius:50%;border:2px solid var(--bg-header)}
+.header__user{display:flex;align-items:center;gap:10px;padding:4px 10px 4px 4px;border-radius:999px;transition:background var(--transition)}
+.header__user:hover{background:var(--bg-muted)}
+.header__avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--c-primary),var(--c-purple));color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.header__user-info{line-height:1.2}
+.header__user-info strong{display:block;font-size:13px}
+.header__user-info span{font-size:11px;color:var(--text-muted)}
+
+/* CONTENT */
+.content{flex:1;padding:24px;max-width:1600px;width:100%;margin:0 auto}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.page-head h2{font-size:24px;letter-spacing:-.3px}
+.page-head p{font-size:13px;color:var(--text-muted);margin-top:3px}
+
+/* SIDEBAR OVERLAY (mobile) */
+.sidebar-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:55;opacity:0;visibility:hidden;transition:opacity var(--transition),visibility var(--transition)}
+.sidebar-overlay.is-visible{opacity:1;visibility:visible}

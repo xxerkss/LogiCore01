@@ -1,0 +1,8 @@
+.map-placeholder{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:var(--radius-lg);padding:30px;color:#fff;position:relative;overflow:hidden;min-height:220px;display:flex;flex-direction:column;justify-content:center}
+.map-placeholder::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 20% 30%,rgba(96,165,250,.35),transparent 40%),radial-gradient(circle at 80% 70%,rgba(139,92,246,.3),transparent 40%)}
+.map-placeholder h3{position:relative;font-size:18px;margin-bottom:6px}
+.map-placeholder p{position:relative;font-size:13px;color:#cbd5e1;max-width:420px}
+.map-pins{position:relative;display:flex;gap:14px;margin-top:18px;flex-wrap:wrap}
+.map-pin{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);backdrop-filter:blur(6px);padding:6px 12px;border-radius:99px;font-size:12px}
+.map-pin::before{content:'';width:8px;height:8px;border-radius:50%;background:#34d399}
+.alert{margin-top:14px;padding:10px 14px;border-radius:9px;font-size:12.5px;background:#1e293b;border:1px solid #334155;color:#cbd5e1}

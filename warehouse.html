@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Склады — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/warehouse.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content = App.initLayout('warehouse','Склады');
+  if (!content) return;
+  var canWrite = Permissions.canWrite('warehouse');
+  var S = Storage;
+
+  content.innerHTML =
+    '<div class="page-head"><div><h2>Склады и ячейки</h2><p>Управление складскими объектами и вместимостью.</p></div>' +
+    (canWrite?'<button class="btn btn--primary" id="btnAdd">+ Добавить склад</button>':'') + '</div>' +
+    '<div id="whGrid" class="wh-grid"></div>';
+
+  function render(){
+    var list = Warehouse.all();
+    var grid = document.getElementById('whGrid');
+    if (!list.length){
+      grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><h4>Складов нет</h4><p>Добавьте первый склад.</p></div>';
+      return;
+    }
+    grid.innerHTML = list.map(function(w){
+      var used = Warehouse.usedCapacity(w.id);
+      var pct = w.capacity ? Math.min(100, Math.round(used/w.capacity*100)) : 0;
+      var cls = pct>=100?'is-full':pct>=80?'is-high':'';
+      var cells = Warehouse.cellsOf(w.id);
+      return '<div class="card wh-card">' +
+        '<div class="wh-card__head"><div><div class="wh-card__num">'+w.number+'</div><h4>'+Table.escapeHtml(w.name)+'</h4><p>'+Table.escapeHtml(w.address||'—')+'</p></div>' +
+        (canWrite?'<div style="display:flex;gap:4px"><button class="btn btn--icon btn--ghost" data-edit="'+w.id+'" title="Изменить">✎</button><button class="btn btn--icon btn--danger" data-del="'+w.id+'" title="Удалить">🗑</button></div>':'') +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:10px"><span>Заполнено</span><strong>'+used+' / '+w.capacity+'</strong></div>' +
+        '<div class="progress"><div class="progress__bar '+cls+'" style="width:'+pct+'%"></div></div>' +
+        '<div style="margin-top:12px;display:flex;justify-content:space-between;font-size:12.5px"><span>Ячеек: <strong>'+cells.length+'</strong></span>' +
+        (canWrite?'<button class="btn btn--sm btn--ghost" data-cells="'+w.id+'">Ячейки</button>':'') + '</div>' +
+        '</div>';
+    }).join('');
+    grid.querySelectorAll('[data-edit]').forEach(function(b){ b.onclick=function(){ openForm(Warehouse.find(b.dataset.edit)); }; });
+    grid.querySelectorAll('[data-del]').forEach(function(b){ b.onclick=function(){
+      Modal.confirm('Удалить склад?','Действие необратимо.', function(){
+        var r = Warehouse.remove(b.dataset.del);
+        if (r.error){ Notifications.error('Ошибка', r.error); return; }
+        render();
+      });
+    }; });
+    grid.querySelectorAll('[data-cells]').forEach(function(b){ b.onclick=function(){ openCells(Warehouse.find(b.dataset.cells)); }; });
+  }
+
+  function openForm(existing){
+    var isEdit = !!existing;
+    var body = document.createElement('div');
+    body.className = 'form-grid';
+    var fNum  = Forms.field({label:'Номер склада',name:'number',required:true,value:existing?existing.number:'',placeholder:'W-01'});
+    var fName = Forms.field({label:'Название',name:'name',required:true,value:existing?existing.name:''});
+    var fAddr = Forms.field({label:'Адрес',name:'address',value:existing?existing.address:'',full:true});
+    var fCap  = Forms.field({label:'Вместимость',name:'capacity',type:'number',required:true,min:1,value:existing?existing.capacity:''});
+    var fNote = Forms.field({label:'Примечание',name:'note',type:'textarea',value:existing?existing.note:'',full:true});
+    [fNum,fName,fAddr,fCap,fNote].forEach(function(f){ body.appendChild(f.wrap); });
+
+    Modal.open({
+      title: isEdit?'Изменить склад':'Новый склад',
+      content: body, wide:true,
+      confirmText: isEdit?'Сохранить':'Создать',
+      onConfirm: function(){
+        var data = { number:fNum.input.value, name:fName.input.value, address:fAddr.input.value, capacity:fCap.input.value, note:fNote.input.value };
+        var r = isEdit ? Warehouse.update(existing.id, data) : Warehouse.create(data);
+        if (r.error){ Notifications.error('Ошибка', r.error); return false; }
+        render(); return true;
+      }
+    });
+  }
+
+  function openCells(w){
+    var body = document.createElement('div');
+    function draw(){
+      var list = Warehouse.cellsOf(w.id);
+      var inv = S.read(S.KEYS.inventory,[]);
+      var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong>'+w.name+'</strong>' +
+        (canWrite?'<button class="btn btn--sm btn--primary" id="addCell">+ Ячейка</button>':'') + '</div>';
+      if (!list.length) html += '<p style="color:var(--text-muted)">Ячеек пока нет.</p>';
+      else {
+        html += '<div class="cell-grid">';
+        list.forEach(function(c){
+          var used = inv.filter(function(i){return i.cellId===c.id;}).reduce(function(s,i){return s+(Number(i.qty)||0);},0);
+          var pct = c.capacity ? Math.min(100, Math.round(used/c.capacity*100)) : 0;
+          var cls = pct>=100?'is-full':pct>0?'is-filled':'';
+          html += '<div class="cell '+cls+'" title="'+c.code+': '+used+'/'+c.capacity+'">'+c.code+'</div>';
+        });
+        html += '</div>';
+        html += '<div style="margin-top:14px;display:flex;flex-direction:column;gap:4px;font-size:12.5px">';
+        list.forEach(function(c){
+          html += '<div style="display:flex;justify-content:space-between"><span>'+c.code+'</span><span>'+ (canWrite?'<button class="btn btn--sm btn--danger" data-delcell="'+c.id+'">×</button>':'') +'</span></div>';
+        });
+        html += '</div>';
+      }
+      body.innerHTML = html;
+      if (canWrite){
+        var add = body.querySelector('#addCell');
+        if (add) add.onclick = function(){
+          var code = prompt('Код ячейки (например A-01):');
+          if (!code) return;
+          var cap = prompt('Вместимость ячейки:', '500');
+          var r = Warehouse.addCell(w.id, { code:code, capacity:cap });
+          if (r.error){ Notifications.error('Ошибка', r.error); return; }
+          draw();
+        };
+        body.querySelectorAll('[data-delcell]').forEach(function(b){ b.onclick=function(){
+          var r = Warehouse.removeCell(b.dataset.delcell);
+          if (r.error){ Notifications.error('Ошибка', r.error); return; }
+          draw();
+        }; });
+      }
+    }
+    draw();
+    Modal.open({ title:'Ячейки склада', content:body, wide:true, cancelText:'Закрыть' });
+  }
+
+  if (canWrite) document.getElementById('btnAdd').onclick = function(){ openForm(null); };
+  render();
+})();
+</script>
+</body>
+</html>

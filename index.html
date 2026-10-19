@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogiCore — Warehouse · Logistics · Enterprise</title>
+<link rel="stylesheet" href="css/reset.css">
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/responsive.css">
+<style>
+  .landing{min-height:100vh;display:grid;place-items:center;background:linear-gradient(135deg,#0f172a,#1e3a8a 70%);color:#fff;padding:24px}
+  .landing__card{max-width:720px;text-align:center}
+  .landing__logo{font-size:52px;font-weight:900;letter-spacing:-2px;margin-bottom:10px}
+  .landing__logo span{color:#60a5fa}
+  .landing__sub{color:#cbd5e1;margin-bottom:26px;letter-spacing:.5px}
+  .landing__actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:34px}
+  .landing__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;text-align:left}
+  .landing__feature{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:18px}
+  .landing__feature h4{font-size:15px;margin-bottom:6px}
+  .landing__feature p{font-size:12.5px;color:#cbd5e1;line-height:1.5}
+  @media(max-width:640px){.landing__grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="landing">
+  <div class="landing__card">
+    <div class="landing__logo">Logi<span>Core</span></div>
+    <div class="landing__sub">Warehouse · Logistics · Enterprise</div>
+    <div class="landing__actions">
+      <a class="btn btn--primary" href="pages/login.html">Войти в систему</a>
+      <a class="btn btn--ghost" href="pages/dashboard.html">Открыть демо</a>
+    </div>
+    <div class="landing__grid">
+      <div class="landing__feature"><h4>WMS · Склад</h4><p>Товары, ячейки, остатки, приёмка, отгрузка и инвентаризация.</p></div>
+      <div class="landing__feature"><h4>TMS · Логистика</h4><p>Заказы, транспорт, водители, маршруты и доставка.</p></div>
+      <div class="landing__feature"><h4>ERP · Компания</h4><p>Поставщики, финансы, сотрудники и отчёты в одном месте.</p></div>
+    </div>
+  </div>
+</div>
+<script src="js/data/storage.js"></script>
+<script src="js/core/notifications.js"></script>
+<script>
+  // Лёгкая проверка: если есть сессия — сразу в панель
+  (function(){
+    try{
+      var s = sessionStorage.getItem('logicore_session');
+      if (s) location.href = 'pages/dashboard.html';
+    }catch(e){}
+  })();
+</script>
+
+    <script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<!-- МОДУЛИ -->
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+
+</body>
+</html>

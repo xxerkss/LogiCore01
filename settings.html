@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Настройки — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content=App.initLayout('settings','Настройки');
+  if(!content)return;
+  var S=Storage;
+
+  function draw(){
+    var s=S.getSettings();
+    content.innerHTML=
+      '<div class="page-head"><div><h2>Настройки системы</h2><p>Тема, организация, валюта, экспорт/импорт.</p></div></div>'+
+      '<div class="dash-grid">'+
+        '<div class="card"><div class="card__head"><h3>Общие</h3></div><div class="card__body"><div class="form-grid">'+
+          '<div class="field field--full"><label>Название организации</label><input id="org" value="'+Table.escapeHtml(s.organization)+'"></div>'+
+          '<div class="field"><label>Валюта</label><select id="cur"><option value="₸"'+(s.currency==='₸'?' selected':'')+'>₸ (тенге)</option><option value="$"'+(s.currency==='$'?' selected':'')+'>$ (USD)</option><option value="€"'+(s.currency==='€'?' selected':'')+'>€ (EUR)</option></select></div>'+
+          '<div class="field"><label>Тема</label><select id="theme"><option value="light"'+(s.theme==='light'?' selected':'')+'>Светлая</option><option value="dark"'+(s.theme==='dark'?' selected':'')+'>Тёмная</option></select></div>'+
+          '</div><div style="margin-top:14px"><button class="btn btn--primary" id="save">Сохранить</button></div></div></div>'+
+        '<div class="card"><div class="card__head"><h3>Данные</h3></div><div class="card__body" style="display:flex;flex-direction:column;gap:10px">'+
+          '<button class="btn btn--ghost" id="exp">Экспорт JSON</button>'+
+          '<label class="btn btn--ghost" style="cursor:pointer;text-align:center">Импорт JSON<input type="file" id="imp" accept="application/json" style="display:none"></label>'+
+          '<button class="btn btn--danger" id="reset">Очистить все данные</button>'+
+          '<div style="font-size:12px;color:var(--text-muted);margin-top:6px">Версия: '+s.version+'</div>'+
+          '</div></div>'+
+      '</div>';
+
+    document.getElementById('save').onclick=function(){
+      S.saveSettings({
+        organization:document.getElementById('org').value,
+        currency:document.getElementById('cur').value,
+        theme:document.getElementById('theme').value
+      });
+      document.documentElement.setAttribute('data-theme',document.getElementById('theme').value);
+      Notifications.success('Настройки сохранены','');
+    };
+    document.getElementById('exp').onclick=function(){Backup.download();};
+    document.getElementById('imp').onchange=function(e){
+      var f=e.target.files[0];if(!f)return;
+      Backup.importFromFile(f,function(){location.reload();});
+    };
+    document.getElementById('reset').onclick=function(){
+      Modal.confirm('Очистить все данные?','Будут удалены все записи, включая демо. Действие необратимо.',function(){
+        Storage.clearAll();
+        location.href=Navigation.href('login');
+      });
+    };
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

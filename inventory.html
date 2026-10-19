@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Товары и остатки — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/warehouse.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content = App.initLayout('inventory','Товары и остатки');
+  if (!content) return;
+  var S = Storage, canWrite = Permissions.canWrite('inventory');
+  var tblCtrl = null;
+
+  content.innerHTML =
+    '<div class="page-head"><div><h2>Товары и остатки</h2><p>Каталог, складские запасы и инвентаризация.</p></div>' +
+    '<div style="display:flex;gap:8px">' +
+      '<button class="btn btn--ghost" id="btnInventory">Инвентаризация</button>' +
+      (canWrite?'<button class="btn btn--primary" id="btnAdd">+ Товар</button>':'') +
+    '</div></div>' +
+    '<div id="filters"></div>' +
+    '<div class="card"><div class="card__body" id="table"></div></div>';
+
+  var searchVal = '';
+  Filters.create(document.getElementById('filters'), {
+    searchPlaceholder:'Поиск по названию, SKU, штрихкоду…',
+    onChange:function(d){ searchVal = d.search; refresh(); }
+  });
+
+  function rowsData(){
+    return Products.all().map(function(p){
+      var total = Inventory.totalFor(p.id);
+      var sup = p.supplierId ? Suppliers.find(p.supplierId) : null;
+      return {
+        id:p.id, sku:p.sku, name:p.name, category:p.category,
+        unit:p.unit, cost:p.cost, minQty:p.minQty, qty:total,
+        low: total < (Number(p.minQty)||0),
+        supplier: sup?sup.name:'—'
+      };
+    });
+  }
+
+  function refresh(){
+    var rows = rowsData();
+    tblCtrl = Table.render(document.getElementById('table'), {
+      rows: rows,
+      search: searchVal,
+      pageSize: 10,
+      emptyText:'Товаров нет',
+      columns:[
+        { key:'sku', label:'Артикул', width:'120px' },
+        { key:'name', label:'Название' },
+        { key:'category', label:'Категория' },
+        { key:'qty', label:'Остаток', render:function(r){
+          return r.qty + ' ' + (r.low?'<span class="badge badge--red">низкий</span>':'');
+        }},
+        { key:'minQty', label:'Мин.' },
+        { key:'cost', label:'Цена', render:function(r){ return S.money(r.cost); }},
+        { key:'supplier', label:'Поставщик' },
+        { key:'id', label:'', sortable:false, render:function(r){
+          var html = '';
+          if (canWrite){
+            html += '<div class="actions"><button class="btn btn--sm btn--ghost" data-move="'+r.id+'">Переместить</button>' +
+              '<button class="btn btn--icon btn--ghost" data-edit="'+r.id+'">✎</button>' +
+              '<button class="btn btn--icon btn--danger" data-del="'+r.id+'">🗑</button></div>';
+          }
+          return html;
+        }}
+      ]
+    });
+    // привязка
+    var root = document.getElementById('table');
+    root.querySelectorAll('[data-edit]').forEach(function(b){ b.onclick=function(){ openForm(Products.find(b.dataset.edit)); }; });
+    root.querySelectorAll('[data-del]').forEach(function(b){ b.onclick=function(){
+      Modal.confirm('Удалить товар?', 'Проверьте связанные остатки и заказы.', function(){
+        var r = Products.remove(b.dataset.del);
+        if (r.error){ Notifications.error('Ошибка', r.error); return; }
+        refresh();
+      });
+    }; });
+    root.querySelectorAll('[data-move]').forEach(function(b){ b.onclick=function(){ openMove(Products.find(b.dataset.move)); }; });
+  }
+
+  function openForm(existing){
+    var isEdit = !!existing;
+    var body = document.createElement('div'); body.className='form-grid';
+    var suppliers = Suppliers.all();
+    var supplierOpts = [{value:'', label:'— не выбран —'}].concat(suppliers.map(function(s){return {value:s.id, label:s.name};}));
+    var categories = ['Электроника','Периферия','Продукты','Офис','Прочее'];
+
+    var fSku  = Forms.field({label:'Артикул',name:'sku',required:true,value:existing?existing.sku:''});
+    var fBar  = Forms.field({label:'Штрихкод',name:'barcode',value:existing?existing.barcode:''});
+    var fName = Forms.field({label:'Название',name:'name',required:true,value:existing?existing.name:'',full:true});
+    var fCat  = Forms.field({label:'Категория',name:'category',type:'select',options:categories.map(function(c){return {value:c,label:c};}),value:existing?existing.category:'',full:false});
+    var fUnit = Forms.field({label:'Ед. изм.',name:'unit',type:'select',options:[{value:'шт',label:'шт'},{value:'упак',label:'упак'},{value:'кг',label:'кг'},{value:'л',label:'л'}],value:existing?existing.unit:'шт'});
+    var fCost = Forms.field({label:'Цена закупки, ₸',name:'cost',type:'number',required:true,min:0,value:existing?existing.cost:0});
+    var fMin  = Forms.field({label:'Мин. остаток',name:'minQty',type:'number',min:0,value:existing?existing.minQty:0});
+    var fSup  = Forms.field({label:'Поставщик',name:'supplierId',type:'select',options:supplierOpts,value:existing?existing.supplierId:'',full:true});
+
+    [fSku,fBar,fName,fCat,fUnit,fCost,fMin,fSup].forEach(function(f){ body.appendChild(f.wrap); });
+
+    if (!isEdit){
+      var whs = Warehouse.all();
+      var whOpts = [{value:'',label:'— без остатка —'}].concat(whs.map(function(w){return {value:w.id,label:w.number+' · '+w.name};}));
+      var fWh = Forms.field({label:'Начальный склад',name:'warehouseId',type:'select',options:whOpts,full:false});
+      var fQty = Forms.field({label:'Начальное количество',name:'qty',type:'number',min:0,value:0});
+      body.appendChild(fWh.wrap); body.appendChild(fQty.wrap);
+      body._fWh = fWh; body._fQty = fQty;
+    }
+
+    Modal.open({
+      title: isEdit?'Изменить товар':'Новый товар', content:body, wide:true,
+      confirmText: isEdit?'Сохранить':'Создать',
+      onConfirm:function(){
+        var data = {
+          sku:fSku.input.value, barcode:fBar.input.value, name:fName.input.value,
+          category:fCat.input.value, unit:fUnit.input.value, cost:fCost.input.value,
+          minQty:fMin.input.value, supplierId:fSup.input.value
+        };
+        if (!isEdit){
+          data.warehouseId = body._fWh.input.value;
+          data.qty = body._fQty.input.value;
+        }
+        var r = isEdit ? Products.update(existing.id, data) : Products.create(data);
+        if (r.error){ Notifications.error('Ошибка', r.error); return false; }
+        refresh(); return true;
+      }
+    });
+  }
+
+  function openMove(p){
+    var entries = Inventory.forProduct(p.id);
+    if (!entries.length){ Notifications.warning('Нет остатков','Нечего перемещать.'); return; }
+    var body = document.createElement('div');
+    body.innerHTML = '<p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Товар: <strong>'+Table.escapeHtml(p.name)+'</strong></p>';
+    var whs = Warehouse.all();
+    var whOpts = whs.map(function(w){return {value:w.id,label:w.number+' · '+w.name};});
+    var fromWh = Forms.field({label:'Со склада',name:'fromWh',type:'select',options:whOpts,value:entries[0].warehouseId});
+    var qty = Forms.field({label:'Количество',name:'qty',type:'number',min:1,value:1});
+    var toWh = Forms.field({label:'На склад',name:'toWh',type:'select',options:whOpts,value:entries[0].warehouseId});
+    var toCell = Forms.field({label:'В ячейку (код или пусто)',name:'toCell',placeholder:'A-01'});
+    [fromWh,qty,toWh,toCell].forEach(function(f){ body.appendChild(f.wrap); });
+
+    Modal.open({
+      title:'Перемещение товара', content:body,
+      confirmText:'Переместить',
+      onConfirm:function(){
+        var src = entries.find(function(e){return e.warehouseId===fromWh.input.value;});
+        var n = Number(qty.input.value);
+        if (!src){ Notifications.error('Ошибка','Нет остатка на выбранном складе'); return false; }
+        if (n<=0){ Notifications.error('Ошибка','Количество > 0'); return false; }
+        var cells = Warehouse.cellsOf(toWh.input.value);
+        var targetCell = toCell.input.value ? cells.find(function(c){return c.code.toLowerCase()===toCell.input.value.trim().toLowerCase();}) : null;
+        var r = Inventory.move(p.id, src.warehouseId, src.cellId, toWh.input.value, targetCell?targetCell.id:null, n);
+        if (r.error){ Notifications.error('Ошибка', r.error); return false; }
+        refresh(); return true;
+      }
+    });
+  }
+
+  function openInventory(){
+    var rows = [];
+    Products.all().forEach(function(p){
+      Inventory.forProduct(p.id).forEach(function(e){
+        rows.push({ productId:p.id, productName:p.name, warehouseId:e.warehouseId, warehouseName:(Warehouse.find(e.warehouseId)||{}).name||'—', cellId:e.cellId, system:e.qty, actual:e.qty });
+      });
+    });
+    if (!rows.length){ Notifications.warning('Инвентаризация','Нет остатков для проверки.'); return; }
+
+    var body = document.createElement('div');
+    body.innerHTML = '<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Укажите фактическое количество по позициям.</p>';
+    var wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    wrap.innerHTML = '<table class="data"><thead><tr><th>Товар</th><th>Склад</th><th>Системное</th><th>Фактическое</th></tr></thead><tbody>' +
+      rows.map(function(r,i){
+        return '<tr><td>'+Table.escapeHtml(r.productName)+'</td><td>'+Table.escapeHtml(r.warehouseName)+'</td><td>'+r.system+'</td>' +
+          '<td><input type="number" min="0" data-i="'+i+'" value="'+r.system+'" style="width:90px;padding:4px 8px;border:1px solid var(--border-strong);border-radius:6px"></td></tr>';
+      }).join('') + '</tbody></table>';
+    body.appendChild(wrap);
+
+    Modal.open({
+      title:'Инвентаризация', content:body, wide:true,
+      confirmText:'Применить корректировки',
+      onConfirm:function(){
+        body.querySelectorAll('input[data-i]').forEach(function(inp){
+          rows[Number(inp.dataset.i)].actual = Number(inp.value)||0;
+        });
+        Inventory.inventoryAdjust(rows.map(function(r){
+          return { productId:r.productId, warehouseId:r.warehouseId, cellId:r.cellId, actual:r.actual };
+        }));
+        refresh(); return true;
+      }
+    });
+  }
+
+  if (canWrite) document.getElementById('btnAdd').onclick = function(){ openForm(null); };
+  document.getElementById('btnInventory').onclick = openInventory;
+  refresh();
+})();
+</script>
+</body>
+</html>

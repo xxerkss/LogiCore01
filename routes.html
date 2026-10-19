@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Маршруты и рейсы — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content=App.initLayout('routes','Маршруты и рейсы');
+  if(!content)return;
+  var S=Storage, canWrite=Permissions.canWrite('routes');
+
+  content.innerHTML=
+    '<div class="page-head"><div><h2>Маршруты и рейсы</h2><p>Планирование рейсов и назначение ТС.</p></div>'+
+    (canWrite?'<button class="btn btn--primary" id="btnAdd">+ Новый рейс</button>':'')+'</div>'+
+    '<div class="card"><div class="card__body" id="table"></div></div>';
+
+  function draw(){
+    Table.render(document.getElementById('table'),{
+      rows:Routes.all(),pageSize:10,emptyText:'Рейсов нет',
+      columns:[
+        { key:'number', label:'Номер', width:'100px' },
+        { key:'transportId', label:'Транспорт', render:function(r){var t=Transport.find(r.transportId);return t?Table.escapeHtml(t.plate+' · '+t.model):'—';} },
+        { key:'driverId', label:'Водитель', render:function(r){var d=Transport.driverFind(r.driverId);return d?Table.escapeHtml(d.name):'—';} },
+        { key:'from', label:'Откуда' },
+        { key:'to', label:'Куда' },
+        { key:'status', label:'Статус', render:function(r){
+          var map={planned:'status--new',in_transit:'status--transit',completed:'status--delivered',cancelled:'status--cancelled'};
+          return '<span class="status '+(map[r.status]||'')+'">'+(Routes.STATUS[r.status]||r.status)+'</span>';
+        }},
+        { key:'id', label:'', sortable:false, render:function(r){
+          var html='<div class="actions">';
+          if(canWrite && r.status==='planned')html+='<button class="btn btn--sm btn--success" data-status="'+r.id+'" data-to="in_transit">Отправить</button>';
+          if(canWrite && r.status==='in_transit')html+='<button class="btn btn--sm btn--primary" data-status="'+r.id+'" data-to="completed">Завершить</button>';
+          if(canWrite)html+='<button class="btn btn--icon btn--danger" data-del="'+r.id+'">🗑</button>';
+          return html+'</div>';
+        }}
+      ]
+    });
+    var root=document.getElementById('table');
+    root.querySelectorAll('[data-status]').forEach(function(b){b.onclick=function(){var r=Routes.updateStatus(b.dataset.status,b.dataset.to);if(r.error){Notifications.error('Ошибка',r.error);return;}draw();};});
+    root.querySelectorAll('[data-del]').forEach(function(b){b.onclick=function(){
+      Modal.confirm('Удалить рейс?','',function(){var r=Routes.remove(b.dataset.del);if(r.error){Notifications.error('Ошибка',r.error);return;}draw();});
+    };});
+  }
+
+  function openCreate(){
+    var body=document.createElement('div');body.className='form-grid';
+    var trOpts=Transport.all().filter(function(t){return t.status==='active';}).map(function(t){return {value:t.id,label:t.plate+' · '+t.model};});
+    var drvOpts=Transport.drivers().filter(function(d){return d.status==='active';}).map(function(d){return {value:d.id,label:d.name};});
+    var fTr=Forms.field({label:'Транспорт',name:'transportId',type:'select',required:true,options:trOpts});
+    var fDrv=Forms.field({label:'Водитель',name:'driverId',type:'select',required:true,options:drvOpts});
+    var fFrom=Forms.field({label:'Откуда',name:'from',required:true,value:'Алматы'});
+    var fTo=Forms.field({label:'Куда',name:'to',required:true});
+    var fDep=Forms.field({label:'Отправление',name:'departureDate',type:'date',value:S.todayISO()});
+    var fArr=Forms.field({label:'Прибытие',name:'arrivalDate',type:'date'});
+    [fTr,fDrv,fFrom,fTo,fDep,fArr].forEach(function(f){body.appendChild(f.wrap);});
+    Modal.open({
+      title:'Новый рейс',content:body,wide:true,confirmText:'Создать',
+      onConfirm:function(){
+        var r=Routes.create({transportId:fTr.input.value,driverId:fDrv.input.value,from:fFrom.input.value,to:fTo.input.value,departureDate:fDep.input.value,arrivalDate:fArr.input.value});
+        if(r.error){Notifications.error('Ошибка',r.error);return false;}
+        draw();return true;
+      }
+    });
+  }
+
+  if(canWrite)document.getElementById('btnAdd').onclick=openCreate;
+  draw();
+})();
+</script>
+</body>
+</html>

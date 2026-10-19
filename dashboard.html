@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Главная панель — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/dashboard.css">
+<link rel="stylesheet" href="../css/responsive.css">
+<style>
+  .dash-section-title{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:700;margin:22px 0 12px}
+</style>
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  'use strict';
+  var content = App.initLayout('dashboard','Главная панель');
+  if (!content) return;
+
+  function render() {
+    // 1. Быстрая загрузка данных (из кэша storage.js)
+    var products = Products.all();
+    var inventory = Inventory.all();
+    var orders = Orders.all();
+    var warehouses = Warehouse.all();
+    var receiving = Receiving.all();
+    var routes = Routes.all();
+    var finance = Finance.all();
+
+    // 2. Расчет KPI
+    var totalQty = 0, totalValue = 0;
+    var invMap = {}; // быстрый поиск
+
+    inventory.forEach(function(item) {
+      var qty = Number(item.qty) || 0;
+      totalQty += qty;
+      invMap[item.productId] = (invMap[item.productId] || 0) + qty;
+    });
+
+    products.forEach(function(p) {
+      var qty = invMap[p.id] || 0;
+      totalValue += qty * (Number(p.cost) || 0);
+    });
+
+    var inWork = 0, delivered = 0, revenue = 0;
+    orders.forEach(function(o) {
+      if (['new','confirmed','collecting','ready'].indexOf(o.status) !== -1) inWork++;
+      if (o.status === 'delivered') delivered++;
+      if (o.status !== 'cancelled') revenue += Orders.totalOf(o);
+    });
+
+    var pendingRecv = 0;
+    receiving.forEach(function(r) { if (r.status === 'pending') pendingRecv++; });
+
+    var transitRoutes = 0;
+    routes.forEach(function(r) { if (r.status === 'in_transit') transitRoutes++; });
+
+    var expense = 0;
+    finance.forEach(function(f) { if (f.type === 'expense') expense += Number(f.amount) || 0; });
+
+    // 3. Рендер
+    content.innerHTML = 
+      '<div class="page-head">' +
+        '<div><h2>Главная панель</h2><p>Данные берутся напрямую из ваших модулей.</p></div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button class="btn btn--ghost" id="btnRefresh">↻ Обновить</button>' +
+          '<a class="btn btn--primary" href="' + Navigation.href('orders') + '">+ Заказ</a>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="dash-section-title">СКЛАД (WMS)</div>' +
+      '<div class="kpi-grid">' +
+        kpiCard('blue', 'Всего единиц на складе', totalQty, inventory.length + ' строк остатков', 'box') +
+        kpiCard('cyan', 'Стоимость склада', Storage.money(totalValue), 'по закупочным ценам', 'money') +
+        kpiCard('purple', 'Складов', warehouses.length, 'в системе', 'wh') +
+        kpiCard('orange', 'Ожидают приёмки', pendingRecv, receiving.length + ' документов', 'down') +
+      '</div>' +
+
+      '<div class="dash-section-title">ЛОГИСТИКА (TMS)</div>' +
+      '<div class="kpi-grid">' +
+        kpiCard('green', 'Заказы в работе', inWork, orders.length + ' всего', 'cart') +
+        kpiCard('orange', 'Рейсы в пути', transitRoutes, routes.length + ' рейсов', 'truck') +
+        kpiCard('blue', 'Доставлено заказов', delivered, 'из ' + orders.length, 'check') +
+        kpiCard('red', 'Расходы', Storage.money(expense), 'по всем операциям', 'fuel') +
+      '</div>' +
+
+      '<div class="dash-grid">' +
+        '<div class="card"><div class="card__head"><h3>Топ-5 товаров по остаткам</h3></div><div class="card__body" id="topProducts"></div></div>' +
+        '<div class="card"><div class="card__head"><h3>Низкие остатки</h3></div><div class="card__body" id="lowStock"></div></div>' +
+      '</div>' +
+
+      '<div class="card" style="margin-top:18px"><div class="card__head"><h3>Сводная таблица по модулям</h3></div><div class="card__body" id="summary"></div></div>';
+
+    // Топ товаров
+    var top = products.map(function(p) {
+      return { name: p.name, qty: invMap[p.id] || 0, unit: p.unit || 'шт' };
+    }).sort(function(a,b){ return b.qty - a.qty; }).slice(0,5);
+
+    if (!top.length) {
+      document.getElementById('topProducts').innerHTML = '<div class="empty"><h4>Товаров нет</h4></div>';
+    } else {
+      var max = top[0].qty || 1;
+      document.getElementById('topProducts').innerHTML = top.map(function(t) {
+        var pct = Math.round((t.qty / max) * 100);
+        return '<div style="margin-bottom:12px;">' +
+          '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">' +
+            '<span>' + Table.escapeHtml(t.name) + '</span><strong>' + t.qty + ' ' + t.unit + '</strong>' +
+          '</div>' +
+          '<div class="progress"><div class="progress__bar" style="width:' + pct + '%"></div></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // Низкие остатки
+    var low = [];
+    products.forEach(function(p) {
+      var q = invMap[p.id] || 0;
+      var m = Number(p.minQty) || 0;
+      if (q < m) low.push({ name: p.name, qty: q, min: m });
+    });
+
+    if (!low.length) {
+      document.getElementById('lowStock').innerHTML = '<div class="empty"><h4>Все в норме</h4><p>Нет товаров с низким остатком.</p></div>';
+    } else {
+      document.getElementById('lowStock').innerHTML = low.map(function(l) {
+        return '<div class="dash-list__item"><div class="dash-list__icon" style="background:#fee2e2;color:#b91c1c;font-weight:700">!</div>' +
+          '<div class="dash-list__body"><strong>' + Table.escapeHtml(l.name) + '</strong><span>Остаток: ' + l.qty + ' / мин. ' + l.min + '</span></div></div>';
+      }).join('');
+    }
+
+    // Сводная таблица
+    var summary = [
+      ['Товары', products.length],
+      ['Строки остатков', inventory.length],
+      ['Всего единиц', totalQty],
+      ['Стоимость склада', Storage.money(totalValue)],
+      ['Склады', warehouses.length],
+      ['Заказы', orders.length],
+      ['Выручка по заказам', Storage.money(revenue)],
+      ['Приёмки', receiving.length],
+      ['Отгрузки', Shipping.all().length],
+      ['Транспорт', Transport.all().length],
+      ['Рейсы', routes.length],
+      ['Поставщики', Suppliers.all().length]
+    ];
+    
+    document.getElementById('summary').innerHTML = '<div class="table-wrap"><table class="data"><thead><tr><th>Показатель</th><th>Значение</th></tr></thead><tbody>' +
+      summary.map(function(s) { return '<tr><td>' + s[0] + '</td><td><strong>' + s[1] + '</strong></td></tr>'; }).join('') +
+      '</tbody></table></div>';
+
+    document.getElementById('btnRefresh').onclick = render;
+  }
+
+  function kpiCard(color, label, value, sub, icon) {
+    var icons = {
+      box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+      cart:'<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 002 1.6h9.7a2 2 0 002-1.6L23 6H6"/>',
+      down:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+      truck:'<path d="M1 3h15v13H1zM16 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+      wh:'<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/>',
+      fuel:'<path d="M3 22h12V4H3zM15 10h4l3 3v9h-7M7 8h4"/>',
+      check:'<path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/>',
+      money:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>'
+    };
+    var svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(icons[icon]||'')+'</svg>';
+    return '<div class="kpi kpi--'+color+'">' +
+      '<div class="kpi__head"><span class="kpi__label">'+label+'</span><div class="kpi__icon">'+svg+'</div></div>' +
+      '<div class="kpi__value">'+value+'</div><div class="kpi__sub">'+sub+'</div>' +
+    '</div>';
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Приёмка — LogiCore</title>
+<link rel="stylesheet" href="../css/reset.css">
+<link rel="stylesheet" href="../css/variables.css">
+<link rel="stylesheet" href="../css/layout.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+<script src="../js/data/storage.js"></script>
+<script src="../js/core/notifications.js"></script>
+<script src="../js/core/auth.js"></script>
+<script src="../js/core/permissions.js"></script>
+<script src="../js/core/navigation.js"></script>
+<script src="../js/data/seed.js"></script>
+<script src="../js/data/backup.js"></script>
+<script src="../js/ui/modal.js"></script>
+<script src="../js/ui/table.js"></script>
+<script src="../js/ui/forms.js"></script>
+<script src="../js/ui/filters.js"></script>
+<script src="../js/ui/sidebar.js"></script>
+<script src="../js/ui/header.js"></script>
+<script src="../js/modules/products.js"></script>
+<script src="../js/modules/warehouse.js"></script>
+<script src="../js/modules/inventory.js"></script>
+<script src="../js/modules/receiving.js"></script>
+<script src="../js/modules/shipping.js"></script>
+<script src="../js/modules/orders.js"></script>
+<script src="../js/modules/transport.js"></script>
+<script src="../js/modules/routes.js"></script>
+<script src="../js/modules/suppliers.js"></script>
+<script src="../js/modules/finance.js"></script>
+<script src="../js/modules/employees.js"></script>
+<script src="../js/modules/reports.js"></script>
+<script src="../js/core/app.js"></script>
+<script>
+(function(){
+  var content = App.initLayout('receiving','Приёмка');
+  if (!content) return;
+  var S = Storage, canWrite = Permissions.canWrite('receiving');
+
+  content.innerHTML =
+    '<div class="page-head"><div><h2>Приёмка товаров</h2><p>Документы поступления от поставщиков.</p></div>' +
+    (canWrite?'<button class="btn btn--primary" id="btnAdd">+ Новая приёмка</button>':'') + '</div>' +
+    '<div class="card"><div class="card__body" id="table"></div></div>';
+
+  function draw(){
+    Table.render(document.getElementById('table'), {
+      rows: Receiving.all(),
+      pageSize: 10,
+      emptyText:'Документов приёмки нет',
+      columns:[
+        { key:'number', label:'Номер', width:'120px' },
+        { key:'createdAt', label:'Дата', render:function(r){return S.formatDate(r.createdAt);} },
+        { key:'supplierId', label:'Поставщик', render:function(r){var s=Suppliers.find(r.supplierId);return s?Table.escapeHtml(s.name):'—';} },
+        { key:'warehouseId', label:'Склад', render:function(r){var w=Warehouse.find(r.warehouseId);return w?Table.escapeHtml(w.name):'—';} },
+        { key:'items', label:'Позиций', render:function(r){return (r.items||[]).length;} },
+        { key:'status', label:'Статус', render:function(r){
+          return r.status==='completed' ? '<span class="status status--delivered">Завершена</span>' : '<span class="status status--collecting">Ожидает</span>';
+        }},
+        { key:'id', label:'', sortable:false, render:function(r){
+          var html='<div class="actions">';
+          if (r.status==='pending' && canWrite) html+='<button class="btn btn--sm btn--success" data-confirm="'+r.id+'">Подтвердить</button>';
+          if (canWrite) html+='<button class="btn btn--icon btn--danger" data-del="'+r.id+'">🗑</button>';
+          return html+'</div>';
+        }}
+      ]
+    });
+    var root = document.getElementById('table');
+    root.querySelectorAll('[data-confirm]').forEach(function(b){ b.onclick=function(){
+      Modal.confirm('Подтвердить приёмку?','Остатки будут увеличены.', function(){
+        var r = Receiving.confirm(b.dataset.confirm);
+        if (r.error){ Notifications.error('Ошибка', r.error); return; }
+        draw();
+      });
+    }; });
+    root.querySelectorAll('[data-del]').forEach(function(b){ b.onclick=function(){
+      Modal.confirm('Удалить документ?','Действие необратимо.', function(){
+        var r = Receiving.remove(b.dataset.del);
+        if (r.error){ Notifications.error('Ошибка', r.error); return; }
+        draw();
+      });
+    }; });
+  }
+
+  function openCreate(){
+    var body = document.createElement('div');
+    var suppliers = Suppliers.all();
+    var whs = Warehouse.all();
+    var fSup = Forms.field({label:'Поставщик',name:'supplierId',type:'select',required:true,options:suppliers.map(function(s){return {value:s.id,label:s.name};})});
+    var fWh  = Forms.field({label:'Склад',name:'warehouseId',type:'select',required:true,options:whs.map(function(w){return {value:w.id,label:w.number+' · '+w.name};})});
+    var fNote= Forms.field({label:'Примечание',name:'note',type:'textarea',full:true});
+    body.appendChild(fSup.wrap); body.appendChild(fWh.wrap); body.appendChild(fNote.wrap);
+
+    var itemsWrap = document.createElement('div');
+    itemsWrap.style.marginTop='12px';
+    body.appendChild(itemsWrap);
+
+    var addBtn = document.createElement('button');
+    addBtn.className='btn btn--sm btn--ghost'; addBtn.textContent='+ Товар'; addBtn.type='button';
+    body.appendChild(addBtn);
+
+    var lines = [];
+    function drawItems(){
+      itemsWrap.innerHTML='';
+      lines.forEach(function(l,idx){
+        var row = document.createElement('div');
+        row.style.cssText='display:grid;grid-template-columns:1fr 100px 40px;gap:8px;margin-bottom:6px;align-items:center';
+        var sel = document.createElement('select');
+        sel.style.cssText='padding:7px 10px;border:1px solid var(--border-strong);border-radius:6px';
+        sel.innerHTML='<option value="">— товар —</option>'+Products.all().map(function(p){return '<option value="'+p.id+'"'+(p.id===l.productId?' selected':'')+'>'+Table.escapeHtml(p.name)+'</option>';}).join('');
+        sel.onchange=function(){l.productId=sel.value;};
+        var q = document.createElement('input');
+        q.type='number'; q.min=1; q.value=l.qty; q.style.cssText='padding:7px 10px;border:1px solid var(--border-strong);border-radius:6px';
+        q.onchange=function(){l.qty=Number(q.value)||1;};
+        var rm = document.createElement('button');
+        rm.className='btn btn--icon btn--danger'; rm.textContent='×'; rm.type='button';
+        rm.onclick=function(){lines.splice(idx,1);drawItems();};
+        row.appendChild(sel); row.appendChild(q); row.appendChild(rm);
+        itemsWrap.appendChild(row);
+      });
+    }
+    addBtn.onclick=function(){lines.push({productId:'',qty:1});drawItems();};
+    lines.push({productId:'',qty:1});drawItems();
+
+    Modal.open({
+      title:'Новая приёмка', content:body, wide:true,
+      confirmText:'Создать',
+      onConfirm:function(){
+        var r = Receiving.create({
+          supplierId:fSup.input.value, warehouseId:fWh.input.value,
+          items:lines, note:fNote.input.value
+        });
+        if (r.error){ Notifications.error('Ошибка', r.error); return false; }
+        draw(); return true;
+      }
+    });
+  }
+
+  if (canWrite) document.getElementById('btnAdd').onclick=openCreate;
+  draw();
+})();
+</script>
+</body>
+</html>

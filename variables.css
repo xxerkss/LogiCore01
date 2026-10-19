@@ -1,0 +1,71 @@
+:root{
+  --c-primary:#2563eb;
+  --c-primary-dark:#1d4ed8;
+  --c-primary-light:#60a5fa;
+  --c-accent:#1e40af;
+  --c-success:#10b981;
+  --c-warning:#f59e0b;
+  --c-danger:#ef4444;
+  --c-purple:#8b5cf6;
+  --c-cyan:#06b6d4;
+
+  --bg-body:#f1f5f9;
+  --bg-surface:#ffffff;
+  --bg-sidebar:#0f172a;
+  --bg-sidebar-hover:#1e293b;
+  --bg-sidebar-active:#2563eb;
+  --bg-header:#ffffff;
+  --bg-muted:#f8fafc;
+  --bg-elevated:#ffffff;
+
+  --text-main:#0f172a;
+  --text-muted:#64748b;
+  --text-invert:#f8fafc;
+  --text-sidebar:#cbd5e1;
+
+  --border:#e2e8f0;
+  --border-strong:#cbd5e1;
+
+  --radius-sm:6px;
+  --radius:10px;
+  --radius-lg:14px;
+  --shadow-sm:0 1px 2px rgba(15,23,42,.06);
+  --shadow:0 4px 12px rgba(15,23,42,.08);
+  --shadow-lg:0 12px 32px rgba(15,23,42,.14);
+
+  --sidebar-w:260px;
+  --header-h:64px;
+  --transition:.18s ease;
+
+  --font:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+}
+
+[data-theme="dark"]{
+  --bg-body:#0b1220;
+  --bg-surface:#111c31;
+  --bg-header:#0f1a2e;
+  --bg-muted:#0e1728;
+  --bg-elevated:#152238;
+  --text-main:#e2e8f0;
+  --text-muted:#94a3b8;
+  --border:#1e293b;
+  --border-strong:#334155;
+  --shadow:0 4px 12px rgba(0,0,0,.4);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.55);
+}
+
+/* Status colors (shared) */
+.status{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.status--new{background:#dbeafe;color:#1d4ed8}
+.status--confirmed{background:#e0f2fe;color:#0369a1}
+.status--collecting{background:#fef3c7;color:#b45309}
+.status--ready{background:#ede9fe;color:#6d28d9}
+.status--shipped{background:#cffafe;color:#0e7490}
+.status--transit{background:#ffedd5;color:#c2410c}
+.status--delivered{background:#d1fae5;color:#047857}
+.status--cancelled{background:#fee2e2;color:#b91c1c}
+.status--active{background:#d1fae5;color:#047857}
+.status--inactive{background:#e2e8f0;color:#475569}
+.status--low{background:#fee2e2;color:#b91c1c}
+.status--ok{background:#d1fae5;color:#047857}
